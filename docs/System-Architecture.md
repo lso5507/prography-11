@@ -7,7 +7,6 @@ flowchart TB
     subgraph Clients[Clients]
         C1[Admin Client]
         C2[Member Client]
-        C3[.http/MockMvc Tests]
     end
 
     subgraph App[Spring Boot Application]

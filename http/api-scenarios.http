@@ -2,6 +2,10 @@
 @base = {{host}}/api/v1
 @newLoginId = scenario-user-001
 @newPassword = pass1234
+@newPhone = 010-1234-5678
+@cohortMemberId = 1
+@qrCodeId = 1
+@qrHash = 550e8400-e29b-41d4-a716-446655440000
 
 ### 01 로그인
 POST {{base}}/auth/login
@@ -17,7 +21,7 @@ Content-Type: application/json
     client.assert(response.status === 200, "status 200 expected");
     client.assert(response.body.success === true, "success true expected");
   });
-  client.global.set("adminId", response.body.data.memberId);
+  client.global.set("adminId", response.body.data.id);
 %}
 
 ### 08 기수 목록
@@ -52,7 +56,7 @@ Content-Type: application/json
   "loginId": "{{newLoginId}}",
   "password": "{{newPassword}}",
   "name": "시나리오회원",
-  "role": "MEMBER",
+  "phone": "{{newPhone}}",
   "cohortId": {{cohortId}},
   "partId": {{partId}},
   "teamId": {{teamId}}
@@ -60,10 +64,9 @@ Content-Type: application/json
 
 > {%
   client.test("03 회원 등록", function() {
-    client.assert(response.status === 200, "status 200 expected");
+    client.assert(response.status === 201, "status 201 expected");
   });
   client.global.set("memberId", response.body.data.id);
-  client.global.set("cohortMemberId", response.body.data.cohortMemberId);
 %}
 
 ### 02 회원 조회
@@ -81,8 +84,7 @@ Content-Type: application/json
 
 {
   "name": "시나리오회원-수정",
-  "role": "MEMBER",
-  "status": "ACTIVE",
+  "phone": "010-7777-8888",
   "partId": {{partId}},
   "teamId": {{teamId}}
 }
@@ -93,16 +95,16 @@ Content-Type: application/json
 
 {
   "title": "시나리오 세션 1",
-  "sessionDate": "2026-02-26",
-  "startTime": "10:00",
-  "endTime": "12:00",
-  "status": "IN_PROGRESS"
+  "date": "2026-02-26",
+  "time": "10:00",
+  "location": "강남"
 }
 
 > {%
+  client.test("12 일정 생성", function() {
+    client.assert(response.status === 201, "status 201 expected");
+  });
   client.global.set("sessionId", response.body.data.id);
-  client.global.set("qrCodeId", response.body.data.qrCodeId);
-  client.global.set("qrHash", response.body.data.qrHashValue);
 %}
 
 ### 10 일정 목록 (회원)
@@ -117,15 +119,22 @@ Content-Type: application/json
 
 {
   "title": "시나리오 세션 1 - 수정",
-  "sessionDate": "2026-02-26",
-  "startTime": "10:00",
-  "endTime": "13:00",
+  "date": "2026-02-26",
+  "time": "10:30",
+  "location": "신촌",
   "status": "IN_PROGRESS"
 }
 
 ### 15 QR 생성
 ### 참고: 일정 생성 시 QR이 자동 생성되므로, 활성 QR이 있으면 409(QR_ALREADY_ACTIVE)가 반환될 수 있습니다.
 POST {{base}}/admin/sessions/{{sessionId}}/qrcodes
+
+> {%
+  if (response.status === 201) {
+    client.global.set("qrCodeId", response.body.data.id);
+    client.global.set("qrHash", response.body.data.hashValue);
+  }
+%}
 
 ### 16 QR 갱신
 PUT {{base}}/admin/qrcodes/{{qrCodeId}}
@@ -142,12 +151,12 @@ POST {{base}}/attendances
 Content-Type: application/json
 
 {
-  "qrHashValue": "{{qrHash}}",
+  "hashValue": "{{qrHash}}",
   "memberId": {{memberId}}
 }
 
 > {%
-  if (response.status === 200) {
+  if (response.status === 201) {
     client.global.set("attendanceId", response.body.data.id);
   }
 %}
@@ -166,7 +175,7 @@ Content-Type: application/json
   "sessionId": {{sessionId}},
   "memberId": {{memberId}},
   "status": "ABSENT",
-  "lateMinutes": 0
+  "reason": "무단 결석"
 }
 
 ### 21 출결 수정
